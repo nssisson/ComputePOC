@@ -9,7 +9,7 @@ import ssl
 API_KEY = "0c34b5e00a2480151931f7c6fcc6fe5c"
 BASE_URL = "https://api.stlouisfed.org/fred"
 
-delay = 0.5 #FRED has a limit of 120 requests per minute
+delay = 0.4 #FRED has a limit of 120 requests per minute
 
 def get_releases():
     """Fetches all releases from FRED."""
