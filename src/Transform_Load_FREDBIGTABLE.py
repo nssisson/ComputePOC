@@ -1,9 +1,8 @@
-import QueryAzureBlobParquet
-import WriteAzureBlob
+import utils.QueryAzureBlobParquet as QueryAzureBlobParquet
+import utils.WriteAzureBlob as WriteAzureBlob
 import duckdb
 import time
 import asyncio
-import sqlalchemy
 
 total_start_time = time.time()
 
