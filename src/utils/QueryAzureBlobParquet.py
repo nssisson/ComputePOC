@@ -1,6 +1,5 @@
 import azure.storage.blob as blob
 import pandas as pd
-import pyarrow.parquet as pq
 import fnmatch
 import ssl
 import io
@@ -70,7 +69,7 @@ def process_results(results):
     dfs = []
     for stream, blob_name in results:
         try:
-            df = pq.read_table(stream).to_pandas()
+            df = pd.read_parquet(stream)
             df['source_file'] = blob_name
             dfs.append(df)
         except Exception as e:
