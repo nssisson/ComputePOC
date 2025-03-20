@@ -4,4 +4,4 @@ COPY requirements.txt .
 # Install any dependencies
 RUN pip install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host=files.pythonhosted.org --no-cache-dir -r requirements.txt
 COPY . .
-CMD ["/bin/sh"]
+CMD ["/bin/sh", "-c", "while true; do sleep 30; done"]
