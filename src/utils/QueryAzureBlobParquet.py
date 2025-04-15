@@ -13,7 +13,7 @@ def get_blob_service_client():
     ssl_context = ssl._create_unverified_context()
     account_url = "https://computepocstorage.blob.core.windows.net"
     container_name = "raw"
-    sas_token = "sv=2022-11-02&ss=b&srt=co&sp=rwdlacyx&se=2025-04-01T05:14:44Z&st=2025-03-14T21:14:44Z&spr=https&sig=RjihXFoWHI%2FkfjJkitSONq7QWYWzhOpMynMqIE3AEPQ%3D"
+    sas_token = "sp=racwdlme&st=2025-04-15T21:43:23Z&se=2025-05-01T05:43:23Z&sv=2024-11-04&sr=c&sig=kQbhUdq5ZEcmCDnBQjoLyCZHYn92wY4Cv0dJzAHGlaM%3D"
     SERVICE_CLIENT = blob.BlobServiceClient(account_url=account_url, credential=sas_token, connection_verify=False)
     return SERVICE_CLIENT
 
