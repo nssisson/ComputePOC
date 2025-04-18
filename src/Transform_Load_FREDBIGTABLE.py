@@ -1,5 +1,5 @@
-import utils.QueryAzureBlobParquet as QueryAzureBlobParquet
-import utils.WriteAzureBlob as WriteAzureBlob
+import QueryAzureBlobParquet
+import WriteAzureBlob
 import duckdb
 import time
 import asyncio

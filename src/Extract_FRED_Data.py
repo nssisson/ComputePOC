@@ -1,7 +1,7 @@
 import requests
 import time
 import pandas as pd
-import utils.WriteAzureBlob as WriteAzureBlob
+import WriteAzureBlob
 
 API_KEY = "0c34b5e00a2480151931f7c6fcc6fe5c"
 BASE_URL = "https://api.stlouisfed.org/fred"
