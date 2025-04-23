@@ -2,5 +2,6 @@ pandas
 pyarrow
 azure-identity    
 azure-storage-blob
+azure-storage-queue
 duckdb
 requests

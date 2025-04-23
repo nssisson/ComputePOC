@@ -1,15 +1,19 @@
 from azure.storage.blob import BlobServiceClient
+from azure.identity import DefaultAzureCredential
 import ssl
 import io
 
 BLOB_SERVICE_CLIENT = None
 
 def get_blob_service_client():
-    ssl_context = ssl._create_unverified_context()
+    #ssl_context = ssl._create_unverified_context()
     account_url = "https://computepocstorage.blob.core.windows.net"
-    container_name = "raw"
-    sas_token = "sp=racwdlme&st=2025-04-15T21:43:23Z&se=2025-05-01T05:43:23Z&sv=2024-11-04&sr=c&sig=kQbhUdq5ZEcmCDnBQjoLyCZHYn92wY4Cv0dJzAHGlaM%3D"
-    blob_service_client = BlobServiceClient(account_url=account_url, credential=sas_token, connection_verify=False)
+    #sas_token = "sp=racwdlme&st=2025-04-15T21:43:23Z&se=2025-05-01T05:43:23Z&sv=2024-11-04&sr=c&sig=kQbhUdq5ZEcmCDnBQjoLyCZHYn92wY4Cv0dJzAHGlaM%3D"
+    blob_service_client = BlobServiceClient(
+        account_url=account_url,
+        credential = DefaultAzureCredential()
+        #,connection_verify=False  #uncomment to run locally with certificate issue
+    )
     return blob_service_client
 
 def writeDataframeToBlob(containerName, blobName, dataframe):

@@ -10,25 +10,27 @@ import Transform_Load_FREDBIGTABLE
 # Initialize the QueueClient with DefaultAzureCredential
 queue_client = queue.QueueClient(
     account_url="https://computepocstorage.queue.core.windows.net/",
-    queue_name="testqueue",
-    credential = DefaultAzureCredential(),
-    connection_verify=False
+    queue_name="computepocqueue",
+    credential = DefaultAzureCredential()
+    #,connection_verify=False #uncomment to run locally with certificate issue
 )
 
 function_map = {
     'Extract_FRED_Data': Extract_FRED_Data.main,
     'Transform_Load_FREDBIGTABLE': Transform_Load_FREDBIGTABLE.main
 }
-message = queue_client.receive_message(visibility_timeout=3500)
+
+message = queue_client.receive_message(visibility_timeout = 5)
+
 if message is not None:
-    try: 
+    try:
+        queue_client.delete_message(message)
+        print("Message Deleted") 
         print(f"Processing message: {message.content}")
         task = function_map.get(message.content)
-        task()
+        output = task()
     except:
-        print('There was a problem processing the error.')
-    finally:
-        queue_client.delete_message(message)
+        print('There was a problem processing the message or task.')
 else:
     print('Nothing Queued')
 
