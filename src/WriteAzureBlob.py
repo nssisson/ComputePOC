@@ -7,7 +7,6 @@ import json
 BLOB_SERVICE_CLIENT = None
 
 def get_blob_service_client():
-    #ssl_context = ssl._create_unverified_context()
     account_url = "https://computepocstorage.blob.core.windows.net"
     blob_service_client = BlobServiceClient(
         account_url=account_url,

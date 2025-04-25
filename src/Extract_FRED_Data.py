@@ -25,6 +25,7 @@ def process_releases():
     jsonData = response.json().get("releases", {})
     releases_df = pd.json_normalize(jsonData)
     WriteAzureBlob.writeDataframeToBlob("raw", "FRED_releases/FRED_releases.parquet", releases_df)
+    global pagesRead
     pagesRead += 1
     process_all_series(jsonData)
 
@@ -43,6 +44,7 @@ def process_series_for_release(release_id):
     jsonData = response.json().get("seriess", {})
     series_df = pd.json_normalize(jsonData)
     WriteAzureBlob.writeDataframeToBlob("raw", f"FRED_series/FRED_series_{release_id}.parquet""", series_df)
+    global pagesRead
     pagesRead += 1
     process_all_observations(jsonData)
 
@@ -74,6 +76,7 @@ def process_observations_for_series(series_id):
     jsonData = response.json().get("observations", {})
     observation_df = pd.json_normalize(jsonData)
     WriteAzureBlob.writeDataframeToBlob("raw", f"FRED_observations/FRED_observations_{series_id}.parquet""", observation_df)
+    global pagesRead
     pagesRead += 1
 
 def process_all_observations(series):

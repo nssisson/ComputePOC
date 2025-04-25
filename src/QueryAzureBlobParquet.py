@@ -11,7 +11,6 @@ CONTAINER_CLIENT = None
 
 def get_blob_service_client():
     global SERVICE_CLIENT
-    #ssl_context = ssl._create_unverified_context()
     account_url = "https://computepocstorage.blob.core.windows.net"
     SERVICE_CLIENT = blob.BlobServiceClient(
         account_url=account_url,

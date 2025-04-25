@@ -23,23 +23,22 @@ function_map = {
     'Transform_Load_FREDBIGTABLE': Transform_Load_FREDBIGTABLE.main
 }
 
-message = queue_client.receive_message(visibility_timeout = 5)
 request = {}
 response = {}
-if message is not None:
-    try:
-        queue_client.delete_message(message)
-        print("Message Dequeued") 
-        request = json.loads(message.content)
-        print(f"Processing message: {message.content}")
-        if function_map[request["Process"]]:
-            task = function_map[request["Process"]]
-            output = task()
-            WriteAzureBlob.writeJsonToBlob("logging", f"{request['ExecutionId']}/{request['Process']}.json", output)
-        else:
-            print('Not a valid function')
-    except:
-        print('There was a problem processing the message or task.')
-else:
-    print('Nothing Queued')
+try:
+    message = queue_client.receive_message(visibility_timeout = 5)
+    queue_client.delete_message(message)
+    print("Message Dequeued") 
+    request = json.loads(message.content)
+    print(f"Processing message: {message.content}")
+    task = function_map[request["Process"]]
+    response = task()
+    WriteAzureBlob.writeJsonToBlob("logging", f"{request['ExecutionId']}/{request['Process']}.json", response)
+except Exception as e:
+    response["status"] = 'fail'
+    response["output"] = {}
+    response["output"]["error"] = str(e)
+    WriteAzureBlob.writeJsonToBlob("logging", f"{request['ExecutionId']}/{request['Process']}.json", response)
+    print('There was a problem processing the message or task.')
+
 
