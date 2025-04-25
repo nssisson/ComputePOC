@@ -2,12 +2,14 @@ import requests
 import time
 import pandas as pd
 import WriteAzureBlob
+import time
 
 API_KEY = "0c34b5e00a2480151931f7c6fcc6fe5c"
 BASE_URL = "https://api.stlouisfed.org/fred"
 BLOB_SERVICE_CLIENT = None
 
 delay = 0.4 #FRED has a limit of 120 requests per minute
+pagesRead = 0
 
 def process_releases():
     """Fetches all releases from FRED."""
@@ -23,6 +25,7 @@ def process_releases():
     jsonData = response.json().get("releases", {})
     releases_df = pd.json_normalize(jsonData)
     WriteAzureBlob.writeDataframeToBlob("raw", "FRED_releases/FRED_releases.parquet", releases_df)
+    pagesRead += 1
     process_all_series(jsonData)
 
 def process_series_for_release(release_id):
@@ -40,6 +43,7 @@ def process_series_for_release(release_id):
     jsonData = response.json().get("seriess", {})
     series_df = pd.json_normalize(jsonData)
     WriteAzureBlob.writeDataframeToBlob("raw", f"FRED_series/FRED_series_{release_id}.parquet""", series_df)
+    pagesRead += 1
     process_all_observations(jsonData)
 
 def process_all_series(releases):
@@ -70,6 +74,7 @@ def process_observations_for_series(series_id):
     jsonData = response.json().get("observations", {})
     observation_df = pd.json_normalize(jsonData)
     WriteAzureBlob.writeDataframeToBlob("raw", f"FRED_observations/FRED_observations_{series_id}.parquet""", observation_df)
+    pagesRead += 1
 
 def process_all_observations(series):
     i=0
@@ -82,7 +87,16 @@ def process_all_observations(series):
         i+=1
 
 def main():
+    start_time = time.time()
     process_releases()
+    total_time = time.time() - start_time
+    output = {}
+    output["status"] = 'success'
+    output["output"] = {}
+    output["output"]["pagesRead"] = pagesRead
+    output["output"]["executionDuration"] = total_time
+    return output
+    
 
 
 if __name__ == "__main__":

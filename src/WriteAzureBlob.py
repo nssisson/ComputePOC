@@ -2,13 +2,13 @@ from azure.storage.blob import BlobServiceClient
 from azure.identity import DefaultAzureCredential
 import ssl
 import io
+import json
 
 BLOB_SERVICE_CLIENT = None
 
 def get_blob_service_client():
     #ssl_context = ssl._create_unverified_context()
     account_url = "https://computepocstorage.blob.core.windows.net"
-    #sas_token = "sp=racwdlme&st=2025-04-15T21:43:23Z&se=2025-05-01T05:43:23Z&sv=2024-11-04&sr=c&sig=kQbhUdq5ZEcmCDnBQjoLyCZHYn92wY4Cv0dJzAHGlaM%3D"
     blob_service_client = BlobServiceClient(
         account_url=account_url,
         credential = DefaultAzureCredential()
@@ -26,4 +26,14 @@ def writeDataframeToBlob(containerName, blobName, dataframe):
     dataframe.to_parquet(buffer, engine="pyarrow", compression="snappy")
     buffer.seek(0)
     blob_client.upload_blob(buffer.getvalue(), overwrite=True)
+    print("Written to Blob: ", blobName)
+
+def writeJsonToBlob(containerName, blobName, contents):
+    global BLOB_SERVICE_CLIENT
+    if BLOB_SERVICE_CLIENT is None:
+        print("Retrieving")
+        BLOB_SERVICE_CLIENT = get_blob_service_client()
+    blob_client = BLOB_SERVICE_CLIENT.get_blob_client(container=containerName, blob=blobName)
+    blob = json.dumps(contents)
+    blob_client.upload_blob(blob, overwrite=True)
     print("Written to Blob: ", blobName)

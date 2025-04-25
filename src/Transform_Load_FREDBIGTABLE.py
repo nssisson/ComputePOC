@@ -64,6 +64,13 @@ def main():
     print(f"BlobWrite Execution time: {blobwrite_time} seconds")
     print(f"Total Execution time: {total_end_time} seconds")
 
+    output = {}
+    output["status"] = 'success'
+    output["output"] = {}
+    output["output"]["rowsWritten"] = len(merged)
+    output["output"]["executionDuration"] = total_end_time
+    return output
+
 
 
 

@@ -13,7 +13,6 @@ def get_blob_service_client():
     global SERVICE_CLIENT
     #ssl_context = ssl._create_unverified_context()
     account_url = "https://computepocstorage.blob.core.windows.net"
-    #sas_token = "sp=racwdlme&st=2025-04-15T21:43:23Z&se=2025-05-01T05:43:23Z&sv=2024-11-04&sr=c&sig=kQbhUdq5ZEcmCDnBQjoLyCZHYn92wY4Cv0dJzAHGlaM%3D"
     SERVICE_CLIENT = blob.BlobServiceClient(
         account_url=account_url,
         credential = DefaultAzureCredential()
