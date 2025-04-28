@@ -5,15 +5,20 @@ import Extract_FRED_Data
 import Transform_Load_FREDBIGTABLE
 import WriteAzureBlob
 import json
+import os
 
 # Configure logging to display debug messages
 #logging.basicConfig(level=logging.DEBUG)
 
 # Initialize the QueueClient with DefaultAzureCredential
+
+queueName = os.environ.get('QUEUE_NAME')
+print(queueName)
+if queueName is None:
+    queueName = 'testqueue'
 queue_client = queue.QueueClient(
     account_url="https://computepocstorage.queue.core.windows.net/",
-    queue_name="computepocqueue",
-    #queue_name="testqueue",
+    queue_name=queueName,
     credential = DefaultAzureCredential()
     #,connection_verify=False #uncomment to run locally with certificate issue
 )
@@ -28,7 +33,6 @@ response = {}
 try:
     message = queue_client.receive_message(visibility_timeout = 5)
     queue_client.delete_message(message)
-    print("Message Dequeued") 
     request = json.loads(message.content)
     print(f"Processing message: {message.content}")
     task = function_map[request["Process"]]

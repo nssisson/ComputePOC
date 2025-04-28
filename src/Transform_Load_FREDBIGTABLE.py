@@ -3,6 +3,7 @@ import WriteAzureBlob
 import duckdb
 import time
 import asyncio
+from datetime import datetime
 
 def main():
     total_start_time = time.time()
@@ -49,7 +50,8 @@ def main():
     duckdb_time = time.time() - step_start_time
 
     step_start_time = time.time()
-    WriteAzureBlob.writeDataframeToBlob("raw", "FRED_BigTable/FRED_BigTable.parquet", merged)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    WriteAzureBlob.writeDataframeToBlob("staging", f"{timestamp}/FRED_BigTable/FRED_BigTable.parquet", merged)
     blobwrite_time = time.time() - step_start_time
 
 

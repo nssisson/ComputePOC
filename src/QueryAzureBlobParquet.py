@@ -52,7 +52,6 @@ async def download_all_blobs(blob_names, max_concurrency=20):
     async def download_with_semaphore(client):
         async with sem:
             return await read_blob_async(client, loop)
-    
     # Create tasks for all blobs
     tasks = [download_with_semaphore(client) for client in blob_clients]
     # Process as they complete
