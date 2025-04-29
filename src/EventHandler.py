@@ -3,6 +3,8 @@ import azure.storage.queue as queue
 from azure.identity import DefaultAzureCredential
 import Extract_FRED_Data
 import Transform_Load_FREDBIGTABLE
+import Extract_FRED_Data_ALL
+import Transform_Load_FREDBIGTABLE_ALL
 import WriteAzureBlob
 import json
 import os
@@ -25,7 +27,9 @@ queue_client = queue.QueueClient(
 
 function_map = {
     'Extract_FRED_Data': Extract_FRED_Data.main,
-    'Transform_Load_FREDBIGTABLE': Transform_Load_FREDBIGTABLE.main
+    'Transform_Load_FREDBIGTABLE': Transform_Load_FREDBIGTABLE.main,
+    'Extract_FRED_Data_ALL': Extract_FRED_Data_ALL.main,
+    'Transform_Load_FREDBIGTABLE_ALL': Transform_Load_FREDBIGTABLE_ALL.main
 }
 
 request = {}
