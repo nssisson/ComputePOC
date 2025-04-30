@@ -3,9 +3,9 @@ from azure.identity import DefaultAzureCredential
 import pandas as pd
 import pyarrow.parquet as pq
 import pyarrow as pa
-import fnmatch
 import io
 import asyncio
+from collections import deque
 
 SERVICE_CLIENT = None
 CONTAINER_CLIENT = None
@@ -24,7 +24,7 @@ def get_blobs(container_name, filepattern):
     global CONTAINER_CLIENT
     CONTAINER_CLIENT = get_blob_service_client().get_container_client(container_name)
     blob_list = CONTAINER_CLIENT.list_blobs(name_starts_with=filepattern)
-    parquet_blobs = [blob.name for blob in blob_list if fnmatch.fnmatch(blob.name, "*.parquet")]
+    parquet_blobs = [blob.name for blob in blob_list if blob.name.endswith(".parquet")]
     return parquet_blobs
 
 
@@ -49,7 +49,7 @@ async def download_all_blobs(blob_names, max_concurrency=20):
     loop = asyncio.get_event_loop()
     # Create semaphore to limit concurrency
     sem = asyncio.Semaphore(max_concurrency)
-    results = []
+    results = deque()
     async def download_with_semaphore(client):
         async with sem:
             return await read_blob_async(client, loop)
@@ -60,7 +60,6 @@ async def download_all_blobs(blob_names, max_concurrency=20):
         try:
             result = await completed_task
             results.append(result)
-            print(f"Successfully downloaded {result[1]}")
         except Exception as e:
             print(f"Error downloading blob: {e}")
     
@@ -69,8 +68,9 @@ async def download_all_blobs(blob_names, max_concurrency=20):
 def process_results(results):
     """Process downloaded results into dataframes synchronously"""
     dfs = []
-    for stream, blob_name in results:
+    while results:
         try:
+            stream, blob_name = results.pop()
             df = pq.read_table(source=stream)
             blob_name_list = [blob_name]*df.num_rows
             blob_name_array = pa.array(blob_name_list, type=pa.string())
@@ -81,9 +81,9 @@ def process_results(results):
     
     # Combine all dataframes
     try:
-        return pa.concat_tables(dfs, promote_options='default')
+        return pa.concat_tables(dfs, promote_options='none')
     except:
-        return None
+        return pa.concat_tables(dfs, promote_options='default')
 
 async def query(container_name, filepattern):
     enumerate_blobs = get_blobs(container_name, filepattern)

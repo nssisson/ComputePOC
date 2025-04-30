@@ -4,7 +4,10 @@ import duckdb
 import time
 import asyncio
 from datetime import datetime
+import os
+import pyarrow.parquet as pq
 
+#@profile
 def main():
     total_start_time = time.time()
 
@@ -14,16 +17,15 @@ def main():
 
     step_start_time = time.time()
     series = asyncio.run(QueryAzureBlobParquet.query("raw", "FRED_series"))
-    series = series.to_pandas(use_threads=True, split_blocks=True, self_destruct=True)
-    series["releases_id"] = series['source_file'].str.extract(r'_(\d+)\.parquet').astype(int)
     series_time = time.time() - step_start_time
 
     step_start_time = time.time()
     observations = asyncio.run(QueryAzureBlobParquet.query("raw", "FRED_observations"))
-    observations = observations.to_pandas(use_threads=True, split_blocks=True, self_destruct=True)
-    observations["series_id"] = observations['source_file'].str.extract(r'FRED_observations_(.*?)\.parquet')
     observation_time = time.time() - step_start_time
-
+    
+    step_start_time = time.time()
+    series_derived = duckdb.sql("SELECT *, regexp_extract(source_file, '_(\d+)\.parquet', 1) as releases_id FROM series")
+    observations_derived = duckdb.sql("SELECT *, regexp_extract(source_file, 'FRED_observations_(.*?)\.parquet', 1) as series_id FROM observations")
     query = '''
     SELECT 
         r.id AS ReleaseId,
@@ -44,10 +46,9 @@ def main():
         o.date AS ObservationDate,
         o.value AS ObservationValue
     FROM releases r
-    INNER JOIN series s ON r.id = s.releases_id
-    INNER JOIN observations o ON s.id = o.series_id
+    INNER JOIN series_derived s ON r.id = s.releases_id
+    INNER JOIN observations_derived o ON s.id = o.series_id
     '''
-    step_start_time = time.time()
     outputPath = './FRED_BigTable.parquet'
     duckdb.query(query).write_parquet(outputPath)
     del releases
@@ -58,6 +59,8 @@ def main():
     step_start_time = time.time()
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     WriteAzureBlob.writeParquetToBlob("staging", f"{timestamp}/FRED_BigTable/FRED_BigTable.parquet", outputPath)
+    row_count = pq.ParquetFile(outputPath).metadata.num_rows
+    #os.remove(outputPath)
     blobwrite_time = time.time() - step_start_time
 
 
@@ -71,11 +74,14 @@ def main():
     print(f"Duckdb Execution time: {duckdb_time} seconds")
     print(f"BlobWrite Execution time: {blobwrite_time} seconds")
     print(f"Total Execution time: {total_end_time} seconds")
+    print(f"Total Records Written: {row_count} records written")
+
 
     output = {}
     output["status"] = 'success'
     output["output"] = {}
     output["output"]["executionDuration"] = total_end_time
+    output["output"]["rowCount"] = row_count
     return output
 
 
