@@ -1,8 +1,9 @@
 import azure.storage.blob as blob
 from azure.identity import DefaultAzureCredential
 import pandas as pd
+import pyarrow.parquet as pq
+import pyarrow as pa
 import fnmatch
-import ssl
 import io
 import asyncio
 
@@ -15,7 +16,7 @@ def get_blob_service_client():
     SERVICE_CLIENT = blob.BlobServiceClient(
         account_url=account_url,
         credential = DefaultAzureCredential()
-        #,connection_verify=False #uncomment to run locally with certificate issue
+        ,connection_verify=False #uncomment to run locally with certificate issue
     )
     return SERVICE_CLIENT
 
@@ -70,17 +71,19 @@ def process_results(results):
     dfs = []
     for stream, blob_name in results:
         try:
-            df = pd.read_parquet(stream)
-            df['source_file'] = blob_name
+            df = pq.read_table(source=stream)
+            blob_name_list = [blob_name]*df.num_rows
+            blob_name_array = pa.array(blob_name_list, type=pa.string())
+            df = df.append_column('source_file', blob_name_array)
             dfs.append(df)
         except Exception as e:
             print(f"Error processing {blob_name}: {e}")
     
     # Combine all dataframes
-    if dfs:
-        return pd.concat(dfs, ignore_index=True)
-    else:
-        return pd.DataFrame()
+    try:
+        return pa.concat_tables(dfs, promote_options='default')
+    except:
+        return None
 
 async def query(container_name, filepattern):
     enumerate_blobs = get_blobs(container_name, filepattern)

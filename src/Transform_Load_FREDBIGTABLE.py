@@ -9,17 +9,19 @@ def main():
     total_start_time = time.time()
 
     step_start_time = time.time()
-    releases_df = asyncio.run(QueryAzureBlobParquet.query("raw", "FRED_releases"))
+    releases = asyncio.run(QueryAzureBlobParquet.query("raw", "FRED_releases"))
     releases_time = time.time() - step_start_time
 
     step_start_time = time.time()
-    series_df = asyncio.run(QueryAzureBlobParquet.query("raw", "FRED_series"))
-    series_df["releases_id"] = series_df['source_file'].str.extract(r'_(\d+)\.parquet').astype(int)
+    series = asyncio.run(QueryAzureBlobParquet.query("raw", "FRED_series"))
+    series = series.to_pandas(use_threads=True, split_blocks=True, self_destruct=True)
+    series["releases_id"] = series['source_file'].str.extract(r'_(\d+)\.parquet').astype(int)
     series_time = time.time() - step_start_time
 
     step_start_time = time.time()
-    observation_df = asyncio.run(QueryAzureBlobParquet.query("raw", "FRED_observations"))
-    observation_df["series_id"] = observation_df['source_file'].str.extract(r'FRED_observations_(.*?)\.parquet')
+    observations = asyncio.run(QueryAzureBlobParquet.query("raw", "FRED_observations"))
+    observations = observations.to_pandas(use_threads=True, split_blocks=True, self_destruct=True)
+    observations["series_id"] = observations['source_file'].str.extract(r'FRED_observations_(.*?)\.parquet')
     observation_time = time.time() - step_start_time
 
     query = '''
@@ -41,17 +43,21 @@ def main():
         s.notes AS SeriesNotes,
         o.date AS ObservationDate,
         o.value AS ObservationValue
-    FROM releases_df r
-    INNER JOIN series_df s ON r.id = s.releases_id
-    INNER JOIN observation_df o ON s.id = o.series_id
+    FROM releases r
+    INNER JOIN series s ON r.id = s.releases_id
+    INNER JOIN observations o ON s.id = o.series_id
     '''
     step_start_time = time.time()
-    merged = duckdb.query(query).to_df()
+    outputPath = './FRED_BigTable.parquet'
+    duckdb.query(query).write_parquet(outputPath)
+    del releases
+    del series
+    del observations
     duckdb_time = time.time() - step_start_time
 
     step_start_time = time.time()
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    WriteAzureBlob.writeDataframeToBlob("staging", f"{timestamp}/FRED_BigTable/FRED_BigTable.parquet", merged)
+    WriteAzureBlob.writeParquetToBlob("staging", f"{timestamp}/FRED_BigTable/FRED_BigTable.parquet", outputPath)
     blobwrite_time = time.time() - step_start_time
 
 
@@ -69,10 +75,8 @@ def main():
     output = {}
     output["status"] = 'success'
     output["output"] = {}
-    output["output"]["rowsWritten"] = len(merged)
     output["output"]["executionDuration"] = total_end_time
     return output
-
 
 
 
