@@ -10,7 +10,7 @@ def get_blob_service_client():
     blob_service_client = BlobServiceClient(
         account_url=account_url,
         credential = DefaultAzureCredential()
-        ,connection_verify=False  #uncomment to run locally with certificate issue
+        # ,connection_verify=False  #uncomment to run locally with certificate issue
     )
     return blob_service_client
 
