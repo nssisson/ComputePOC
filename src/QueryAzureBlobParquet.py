@@ -6,13 +6,17 @@ import pyarrow as pa
 import io
 import asyncio
 from collections import deque
+import os
 
 SERVICE_CLIENT = None
 CONTAINER_CLIENT = None
 
 def get_blob_service_client():
     global SERVICE_CLIENT
-    account_url = "https://computepocstorage.blob.core.windows.net"
+    storage_account_name = os.environ.get('STORAGE_ACCOUNT_NAME')
+    if storage_account_name is None:
+        storage_account_name = 'computepocstorage'
+    account_url = f"https://{storage_account_name}.blob.core.windows.net"
     SERVICE_CLIENT = blob.BlobServiceClient(
         account_url=account_url,
         credential = DefaultAzureCredential()
