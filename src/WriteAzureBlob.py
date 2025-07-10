@@ -2,11 +2,15 @@ from azure.storage.blob import BlobServiceClient
 from azure.identity import DefaultAzureCredential
 import io
 import json
+import os
 
 BLOB_SERVICE_CLIENT = None
 
 def get_blob_service_client():
-    account_url = "https://computepocstorage.blob.core.windows.net"
+    storage_account_name = os.environ.get('STORAGE_ACCOUNT_NAME')
+    if storage_account_name is None:
+        storage_account_name = 'computepocstorage'
+    account_url = f"https://{storage_account_name}.blob.core.windows.net"
     blob_service_client = BlobServiceClient(
         account_url=account_url,
         credential = DefaultAzureCredential()
