@@ -7,8 +7,9 @@ locals {
     ManagedBy   = "Terraform"
   }
 
-  image_name = "containerapps/poc"
-  image_tag  = "v0.1"
+  registry   = "docker.io"
+  image_name = "nsisson1997/computepoc"
+  image_tag  = "latest"
 
   storage_containers = {
     "logging" = {
@@ -121,37 +122,37 @@ module "dls" {
   }
 }
 
-module "kv" {
-  source           = "Azure/avm-res-keyvault-vault/azurerm"
-  version          = "0.10.0"
-  enable_telemetry = false
-
-  name                = "kv-${local.base_name}"
-  resource_group_name = azurerm_resource_group.this.name
-  location            = azurerm_resource_group.this.location
-  tags                = local.tags
-  tenant_id           = data.azurerm_client_config.current.tenant_id
-
-  public_network_access_enabled = true  # Temporary
-  purge_protection_enabled      = false # Temporary
-
-  private_endpoints = contains(local.private_endpoints_enabled, "vault") ? {
-    "vault" = {
-      "name"                          = "pep-kv-${local.base_name}"
-      "network_interface_name"        = "nic-pep-kv-${local.base_name}"
-      "subnet_resource_id"            = module.vnet.subnets.pep.resource_id
-      "subresource_name"              = "vault"
-      "private_dns_zone_resource_ids" = [module.privatelink.private_dns_zone_resource_ids["vault"]]
-    }
-  } : {}
-
-  role_assignments = {
-    "tf-Administrator" = {
-      role_definition_id_or_name = "Key Vault Administrator"
-      principal_id               = data.azurerm_client_config.current.object_id
-    }
-  }
-}
+#module "kv" {
+#  source           = "Azure/avm-res-keyvault-vault/azurerm"
+#  version          = "0.10.0"
+#  enable_telemetry = false
+#
+#  name                = "kv-${local.base_name}"
+#  resource_group_name = azurerm_resource_group.this.name
+#  location            = azurerm_resource_group.this.location
+#  tags                = local.tags
+#  tenant_id           = data.azurerm_client_config.current.tenant_id
+#
+#  public_network_access_enabled = true  # Temporary
+#  purge_protection_enabled      = false # Temporary
+#
+#  private_endpoints = contains(local.private_endpoints_enabled, "vault") ? {
+#    "vault" = {
+#      "name"                          = "pep-kv-${local.base_name}"
+#      "network_interface_name"        = "nic-pep-kv-${local.base_name}"
+#      "subnet_resource_id"            = module.vnet.subnets.pep.resource_id
+#      "subresource_name"              = "vault"
+#      "private_dns_zone_resource_ids" = [module.privatelink.private_dns_zone_resource_ids["vault"]]
+#    }
+#  } : {}
+#
+#  role_assignments = {
+#    "tf-Administrator" = {
+#      role_definition_id_or_name = "Key Vault Administrator"
+#      principal_id               = data.azurerm_client_config.current.object_id
+#    }
+#  }
+#}
 
 module "log_analytics" {
   source           = "Azure/avm-res-operationalinsights-workspace/azurerm"
@@ -178,32 +179,32 @@ module "id" {
   tags                = local.tags
 }
 
-module "acr" {
-  source           = "Azure/avm-res-containerregistry-registry/azurerm"
-  version          = "0.4.0"
-  enable_telemetry = false
-
-  name                = replace("acr-${local.base_name}", "-", "")
-  resource_group_name = azurerm_resource_group.this.name
-  location            = azurerm_resource_group.this.location
-  tags                = local.tags
-
-  sku                        = "Basic"
-  zone_redundancy_enabled    = false
-  retention_policy_in_days   = null
-  network_rule_bypass_option = "AzureServices"
-
-  role_assignments = {
-    "tf_AcrPush" = {
-      role_definition_id_or_name = "AcrPush"
-      principal_id               = data.azurerm_client_config.current.object_id
-    }
-    "id_AcrPull" = {
-      role_definition_id_or_name = "AcrPull"
-      principal_id               = module.id.principal_id
-    }
-  }
-}
+#module "acr" {
+#  source           = "Azure/avm-res-containerregistry-registry/azurerm"
+#  version          = "0.4.0"
+#  enable_telemetry = false
+#
+#  name                = replace("acr-${local.base_name}", "-", "")
+#  resource_group_name = azurerm_resource_group.this.name
+#  location            = azurerm_resource_group.this.location
+#  tags                = local.tags
+#
+#  sku                        = "Basic"
+#  zone_redundancy_enabled    = false
+#  retention_policy_in_days   = null
+#  network_rule_bypass_option = "AzureServices"
+#
+#  role_assignments = {
+#    "tf_AcrPush" = {
+#      role_definition_id_or_name = "AcrPush"
+#      principal_id               = data.azurerm_client_config.current.object_id
+#    }
+#    "id_AcrPull" = {
+#      role_definition_id_or_name = "AcrPull"
+#      principal_id               = module.id.principal_id
+#    }
+#  }
+#}
 
 resource "azurerm_container_app_environment" "this" {
   name                = "cae-${local.base_name}"
@@ -224,17 +225,17 @@ resource "azurerm_container_app_environment" "this" {
   log_analytics_workspace_id = module.log_analytics.resource_id
 }
 
-resource "null_resource" "push_image" { # Super hacky way to push the image to ACR (assumes az cli is present and authenticated)
-  triggers = {
-    image_name = local.image_name
-    image_tag  = local.image_tag
-    registry   = module.acr.name
-  }
-  provisioner "local-exec" {
-    command     = "az acr build -r ${module.acr.name} -t ${local.image_name}:${local.image_tag} ${path.module}/../"
-    interpreter = ["bash", "-c"]
-  }
-}
+#resource "null_resource" "push_image" { # Super hacky way to push the image to ACR (assumes az cli is present and authenticated)
+#  triggers = {
+#    image_name = local.image_name
+#    image_tag  = local.image_tag
+#    registry   = module.acr.name
+#  }
+#  provisioner "local-exec" {
+#    command     = "az acr build -r ${module.acr.name} -t ${local.image_name}:${local.image_tag} ${path.module}/../"
+#    interpreter = ["bash", "-c"]
+#  }
+#}
 
 resource "azapi_resource" "caj" {                     # azurerm_container_app_job doesn't yet support identity in scale > rules
   type      = "Microsoft.App/jobs@2024-10-02-preview" # Latest api version is 2025-01-01; not yet supported by azapi with validation
@@ -279,10 +280,10 @@ resource "azapi_resource" "caj" {                     # azurerm_container_app_jo
             }]
           }
         }
-        registries = [{
-          server   = module.acr.resource.login_server
-          identity = module.id.resource_id
-        }]
+        #registries = [{
+        #  server   = module.acr.resource.login_server
+        #  identity = module.id.resource_id
+        #}]
         identitySettings = [{
           identity = replace(module.id.resource_id, "resourceGroups", "resourcegroups")
           # lifecycle = "All"
@@ -292,7 +293,7 @@ resource "azapi_resource" "caj" {                     # azurerm_container_app_jo
       template = {
         containers = [{
           name      = "testjob"
-          image     = "${module.acr.resource.login_server}/${local.image_name}:${local.image_tag}"
+          image     = "${local.registry}/${local.image_name}:${local.image_tag}"
           imageType = "ContainerImage" # This is removed when bumping to apiVersion @2025-01-01
           resources = {
             cpu    = 0.5
@@ -321,36 +322,36 @@ resource "azapi_resource" "caj" {                     # azurerm_container_app_jo
     }
   }
 
-  depends_on = [null_resource.push_image]
+#  depends_on = [null_resource.push_image]
 }
 
 # One more super hacky setup to push a test message to the queue
-locals {
-  test_process = "Extract_FRED_Data"
-  test_message = jsonencode({
-    ExecutionId = random_integer.test_execution_id.result
-    Process     = local.test_process
-  })
-}
+#locals {
+#  test_process = "Extract_FRED_Data"
+#  test_message = jsonencode({
+#    ExecutionId = random_integer.test_execution_id.result
+#    Process     = local.test_process
+#  })
+#}
 
-resource "random_integer" "test_execution_id" {
-  min = 10000
-  max = 99999
-  keepers = {
-    image_name = local.image_name
-    image_tag  = local.image_tag
-    process    = local.test_process
-  }
-}
+#resource "random_integer" "test_execution_id" {
+#  min = 10000
+#  max = 99999
+#  keepers = {
+#    image_name = local.image_name
+#    image_tag  = local.image_tag
+#    process    = local.test_process
+#  }
+#}
 
-resource "null_resource" "test_message" {
-  triggers = {
-    test_execution_id = random_integer.test_execution_id.result
-  }
-  provisioner "local-exec" {
-    command     = "az storage message put --content '${local.test_message}' --queue-name ${basename(module.dls.queues["queue0"].id)} --account-name ${module.dls.name} --auth-mode login"
-    interpreter = ["bash", "-c"]
-  }
-
-  depends_on = [azapi_resource.caj]
-}
+#resource "null_resource" "test_message" {
+#  triggers = {
+#    test_execution_id = random_integer.test_execution_id.result
+#  }
+#  provisioner "local-exec" {
+#    command     = "az storage message put --content '${local.test_message}' --queue-name ${basename(module.dls.queues["queue0"].id)} --account-name ${module.dls.name} --auth-mode login"
+#    interpreter = ["bash", "-c"]
+#  }
+#
+#  depends_on = [azapi_resource.caj]
+#}

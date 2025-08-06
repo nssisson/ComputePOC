@@ -8,7 +8,7 @@ terraform {
 }
 
 provider "azurerm" {
-  # subscription_id = "<SUBSCRIPTION_ID>"
+  subscription_id = "24fd84c6-82b8-4b65-861a-1f6a2334b9f7"
 
   resource_providers_to_register = ["Microsoft.App"]
   storage_use_azuread            = true
