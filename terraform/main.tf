@@ -1,5 +1,5 @@
 locals {
-  base_name = "ima-aca-sbx-cus"
+  base_name = "ima-aca-sbx-01"
   tags = {
     Owner       = "BI"
     Workload    = "ACA"
@@ -28,6 +28,14 @@ locals {
         }
       }
     }
+    "staging" = {
+      role_assignments = {
+        "ca_id-BlobContributor" = {
+          role_definition_id_or_name = "Storage Blob Data Contributor"
+          principal_id               = module.id.principal_id
+        }
+      }
+    }
   }
   storage_filesystems = {
     # "raw"  = {}
@@ -43,8 +51,8 @@ locals {
     }
   }
   private_endpoints_enabled = [
-    "blob",
-    # "dfs",
+    #"blob",
+     "dfs",
     # "file",
     "queue",
     # "table",
@@ -68,6 +76,7 @@ module "dls" {
   tags                = local.tags
 
   account_replication_type = "LRS"
+  account_kind             = "StorageV2"
   is_hns_enabled           = true
 
   containers = {
@@ -144,7 +153,7 @@ module "dls" {
 #      "subresource_name"              = "vault"
 #      "private_dns_zone_resource_ids" = [module.privatelink.private_dns_zone_resource_ids["vault"]]
 #    }
-#  } : {}
+#  } = {}
 #
 #  role_assignments = {
 #    "tf-Administrator" = {
@@ -206,25 +215,55 @@ module "id" {
 #  }
 #}
 
-resource "azurerm_container_app_environment" "this" {
-  name                = "cae-${local.base_name}"
-  resource_group_name = azurerm_resource_group.this.name
-  location            = azurerm_resource_group.this.location
-  tags                = local.tags
+#resource "azurerm_container_app_environment" "this" {
+#  name                = "cae-${local.base_name}"
+#  resource_group_name = azurerm_resource_group.this.name
+#  location            = azurerm_resource_group.this.location
+#  tags                = local.tags
 
-  infrastructure_resource_group_name = "rg-cae-${local.base_name}"
-  infrastructure_subnet_id           = module.vnet.subnets["aca"].resource_id
-  # internal_load_balancer_enabled     = true
+#  infrastructure_resource_group_name = "rg-cae-${local.base_name}"
+#  infrastructure_subnet_id           = module.vnet.subnets["aca"].resource_id
+#  # internal_load_balancer_enabled     = true
 
-  workload_profile {
-    name                  = "Consumption"
-    workload_profile_type = "Consumption"
+#  workload_profile {
+#    name                  = "Consumption"
+#    workload_profile_type = "Consumption"
+#  }
+
+#  logs_destination           = "log-analytics"
+#  log_analytics_workspace_id = module.log_analytics.resource_id
+#}
+
+
+resource "azapi_resource" "cae" {                            
+  type      = "Microsoft.App/managedEnvironments@2024-10-02-preview" # Latest api version is 2025-01-01; not yet supported by azapi with validation
+  name      = "cae-${local.base_name}"
+  parent_id = azurerm_resource_group.this.id
+  location  = azurerm_resource_group.this.location
+  tags      = local.tags
+
+  body = {
+    properties = {
+      appLogsConfiguration = {
+        destination               = "azure-monitor"
+      }
+      infrastructureResourceGroup = "rg-cae-${local.base_name}"
+
+      vnetConfiguration = {
+        infrastructureSubnetId = module.vnet.subnets["aca"].resource_id
+        internal               = true
+      }
+
+      workloadProfiles = [
+        {
+          name                = "Consumption",
+          workloadProfileType = "Consumption"
+        }
+      ],
+      zoneRedundant = false
+    }
   }
-
-  logs_destination           = "log-analytics"
-  log_analytics_workspace_id = module.log_analytics.resource_id
 }
-
 #resource "null_resource" "push_image" { # Super hacky way to push the image to ACR (assumes az cli is present and authenticated)
 #  triggers = {
 #    image_name = local.image_name
@@ -232,7 +271,7 @@ resource "azurerm_container_app_environment" "this" {
 #    registry   = module.acr.name
 #  }
 #  provisioner "local-exec" {
-#    command     = "az acr build -r ${module.acr.name} -t ${local.image_name}:${local.image_tag} ${path.module}/../"
+#    command     = "az acr build -r ${module.acr.name} -t ${local.image_name}=${local.image_tag} ${path.module}/../"
 #    interpreter = ["bash", "-c"]
 #  }
 #}
@@ -253,7 +292,7 @@ resource "azapi_resource" "caj" {                     # azurerm_container_app_jo
 
   body = {
     properties = {
-      environmentId       = azurerm_container_app_environment.this.id
+      environmentId       = azapi_resource.cae.id
       workloadProfileName = "Consumption"
 
       configuration = {
@@ -292,8 +331,8 @@ resource "azapi_resource" "caj" {                     # azurerm_container_app_jo
 
       template = {
         containers = [{
-          name      = "testjob"
-          image     = "${local.registry}/${local.image_name}:${local.image_tag}"
+          name      = "ima-bi-verysmall"
+          image     = "${local.registry}/${local.image_name}=${local.image_tag}"
           imageType = "ContainerImage" # This is removed when bumping to apiVersion @2025-01-01
           resources = {
             cpu    = 0.5
@@ -307,14 +346,6 @@ resource "azapi_resource" "caj" {                     # azurerm_container_app_jo
             {
               name  = "QUEUE_NAME"
               value = basename(module.dls.queues["queue0"].id)
-            },
-            {
-              name  = "AZURE_TENANT_ID"
-              value = data.azurerm_client_config.current.tenant_id
-            },
-            {
-              name  = "AZURE_CLIENT_ID"
-              value = module.id.client_id
             }
           ]
         }]
@@ -322,7 +353,7 @@ resource "azapi_resource" "caj" {                     # azurerm_container_app_jo
     }
   }
 
-#  depends_on = [null_resource.push_image]
+  #  depends_on = [null_resource.push_image]
 }
 
 # One more super hacky setup to push a test message to the queue
