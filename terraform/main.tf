@@ -51,8 +51,8 @@ locals {
     }
   }
   private_endpoints_enabled = [
-    #"blob",
-     "dfs",
+    "blob",
+    "dfs",
     # "file",
     "queue",
     # "table",
@@ -188,6 +188,8 @@ module "id" {
   tags                = local.tags
 }
 
+
+
 #module "acr" {
 #  source           = "Azure/avm-res-containerregistry-registry/azurerm"
 #  version          = "0.4.0"
@@ -235,7 +237,7 @@ module "id" {
 #}
 
 
-resource "azapi_resource" "cae" {                            
+resource "azapi_resource" "cae" {
   type      = "Microsoft.App/managedEnvironments@2024-10-02-preview" # Latest api version is 2025-01-01; not yet supported by azapi with validation
   name      = "cae-${local.base_name}"
   parent_id = azurerm_resource_group.this.id
@@ -245,13 +247,13 @@ resource "azapi_resource" "cae" {
   body = {
     properties = {
       appLogsConfiguration = {
-        destination               = "azure-monitor"
+        destination = "azure-monitor"
       }
       infrastructureResourceGroup = "rg-cae-${local.base_name}"
-
+      publicNetworkAccess = "Disabled"
       vnetConfiguration = {
         infrastructureSubnetId = module.vnet.subnets["aca"].resource_id
-        internal               = true
+        internal               = false
       }
 
       workloadProfiles = [
@@ -264,6 +266,28 @@ resource "azapi_resource" "cae" {
     }
   }
 }
+
+
+resource "azurerm_monitor_diagnostic_setting" "env_diag" {
+  name                       = "env-diagnostics-${local.base_name}"
+  target_resource_id         = azapi_resource.cae.id
+  log_analytics_workspace_id = module.log_analytics.resource_id
+
+  # Logs you can collect
+  enabled_log {
+    category = "ContainerAppConsoleLogs"
+
+  }
+  enabled_log {
+    category = "ContainerAppSystemLogs"
+  }
+  enabled_metric {
+    category = "AllMetrics"
+
+  }
+}
+
+
 #resource "null_resource" "push_image" { # Super hacky way to push the image to ACR (assumes az cli is present and authenticated)
 #  triggers = {
 #    image_name = local.image_name
@@ -332,7 +356,7 @@ resource "azapi_resource" "caj" {                     # azurerm_container_app_jo
       template = {
         containers = [{
           name      = "ima-bi-verysmall"
-          image     = "${local.registry}/${local.image_name}=${local.image_tag}"
+          image     = "${local.registry}/${local.image_name}:${local.image_tag}"
           imageType = "ContainerImage" # This is removed when bumping to apiVersion @2025-01-01
           resources = {
             cpu    = 0.5
