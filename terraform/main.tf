@@ -103,7 +103,7 @@ module "dls" {
     }
   }
 
-  private_endpoints = {
+  private_endpoints = { 
     for endpoint in toset(local.private_endpoints_enabled) :
     endpoint => {
       name                          = "pep-${endpoint}-${local.base_name}"
@@ -253,7 +253,7 @@ resource "azapi_resource" "cae" {
       publicNetworkAccess = "Disabled"
       vnetConfiguration = {
         infrastructureSubnetId = module.vnet.subnets["aca"].resource_id
-        internal               = false
+        internal               = true
       }
 
       workloadProfiles = [
@@ -321,11 +321,11 @@ resource "azapi_resource" "caj" {                     # azurerm_container_app_jo
 
       configuration = {
         replicaTimeout    = 1800 # This becomes "replicaTimeoutInSeconds" when bumping to apiVersion @2025-01-01
-        replicaRetryLimit = 3
+        replicaRetryLimit = 0
 
         triggerType = "Event"
         eventTriggerConfig = {
-          parallelism            = 10
+          parallelism            = 1
           replicaCompletionCount = 1
           scale = {
             minExecutions   = 0
@@ -370,6 +370,14 @@ resource "azapi_resource" "caj" {                     # azurerm_container_app_jo
             {
               name  = "QUEUE_NAME"
               value = basename(module.dls.queues["queue0"].id)
+            },
+            {
+              name  = "AZURE_TENANT_ID"
+              value = data.azurerm_client_config.current.tenant_id
+            },
+            {
+              name  = "AZURE_CLIENT_ID"
+              value = module.id.client_id
             }
           ]
         }]
