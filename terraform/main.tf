@@ -7,8 +7,8 @@ locals {
     ManagedBy   = "Terraform"
   }
 
-  registry   = "docker.io"
-  image_name = "nsisson1997/computepoc"
+  registry   = "acrimaacasbx01.azurecr.io"
+  image_name = "computepoc/computepoc"
   image_tag  = "latest"
 
   storage_containers = {
@@ -42,6 +42,14 @@ locals {
   }
   storage_queues = {
     "queue0" = {
+      role_assignments = {
+        "ca_id-QueueContributor" = {
+          role_definition_id_or_name = "Storage Queue Data Contributor"
+          principal_id               = module.id.principal_id
+        }
+      }
+    },
+    "queue1" = {
       role_assignments = {
         "ca_id-QueueContributor" = {
           role_definition_id_or_name = "Storage Queue Data Contributor"
@@ -190,32 +198,32 @@ module "id" {
 
 
 
-#module "acr" {
-#  source           = "Azure/avm-res-containerregistry-registry/azurerm"
-#  version          = "0.4.0"
-#  enable_telemetry = false
-#
-#  name                = replace("acr-${local.base_name}", "-", "")
-#  resource_group_name = azurerm_resource_group.this.name
-#  location            = azurerm_resource_group.this.location
-#  tags                = local.tags
-#
-#  sku                        = "Basic"
-#  zone_redundancy_enabled    = false
-#  retention_policy_in_days   = null
-#  network_rule_bypass_option = "AzureServices"
-#
-#  role_assignments = {
-#    "tf_AcrPush" = {
-#      role_definition_id_or_name = "AcrPush"
-#      principal_id               = data.azurerm_client_config.current.object_id
-#    }
-#    "id_AcrPull" = {
-#      role_definition_id_or_name = "AcrPull"
-#      principal_id               = module.id.principal_id
-#    }
-#  }
-#}
+module "acr" {
+  source           = "Azure/avm-res-containerregistry-registry/azurerm"
+  version          = "0.4.0"
+  enable_telemetry = false
+
+  name                = replace("acr-${local.base_name}", "-", "")
+  resource_group_name = azurerm_resource_group.this.name
+  location            = azurerm_resource_group.this.location
+  tags                = local.tags
+
+  sku                        = "Basic"
+  zone_redundancy_enabled    = false
+  retention_policy_in_days   = null
+  network_rule_bypass_option = "AzureServices"
+
+  role_assignments = {
+    "tf_AcrPush" = {
+      role_definition_id_or_name = "AcrPush"
+      principal_id               = data.azurerm_client_config.current.object_id
+    }
+    "id_AcrPull" = {
+      role_definition_id_or_name = "AcrPull"
+      principal_id               = module.id.principal_id
+    }
+  }
+}
 
 #resource "azurerm_container_app_environment" "this" {
 #  name                = "cae-${local.base_name}"
@@ -260,6 +268,13 @@ resource "azapi_resource" "cae" {
         {
           name                = "Consumption",
           workloadProfileType = "Consumption"
+        },
+        {
+          enableFips          = false
+          maximumCount        = 5
+          minimumCount        = 0
+          name                = "memoryoptimzied"
+          workloadProfileType = "E8"
         }
       ],
       zoneRedundant = false
@@ -320,7 +335,7 @@ resource "azapi_resource" "caj" {                     # azurerm_container_app_jo
       workloadProfileName = "Consumption"
 
       configuration = {
-        replicaTimeout    = 1800 # This becomes "replicaTimeoutInSeconds" when bumping to apiVersion @2025-01-01
+        replicaTimeout    = 18600 # This becomes "replicaTimeoutInSeconds" when bumping to apiVersion @2025-01-01
         replicaRetryLimit = 0
 
         triggerType = "Event"
@@ -330,7 +345,7 @@ resource "azapi_resource" "caj" {                     # azurerm_container_app_jo
           scale = {
             minExecutions   = 0
             maxExecutions   = 10
-            pollingInterval = 15
+            pollingInterval = 30
             rules = [{
               name = "queue"
               type = "azure-queue"
@@ -343,10 +358,10 @@ resource "azapi_resource" "caj" {                     # azurerm_container_app_jo
             }]
           }
         }
-        #registries = [{
-        #  server   = module.acr.resource.login_server
-        #  identity = module.id.resource_id
-        #}]
+        registries = [{
+          server   = module.acr.resource.login_server
+          identity = module.id.resource_id
+        }]
         identitySettings = [{
           identity = replace(module.id.resource_id, "resourceGroups", "resourcegroups")
           # lifecycle = "All"
@@ -388,6 +403,94 @@ resource "azapi_resource" "caj" {                     # azurerm_container_app_jo
   #  depends_on = [null_resource.push_image]
 }
 
+
+resource "azapi_resource" "caj1" {                     # azurerm_container_app_job doesn't yet support identity in scale > rules
+  type      = "Microsoft.App/jobs@2024-10-02-preview" # Latest api version is 2025-01-01; not yet supported by azapi with validation
+  name      = "caj-2-${local.base_name}"
+  parent_id = azurerm_resource_group.this.id
+  location  = azurerm_resource_group.this.location
+  tags      = local.tags
+
+  identity {
+    type = "UserAssigned"
+    identity_ids = [
+      module.id.resource_id
+    ]
+  }
+
+  body = {
+    properties = {
+      environmentId       = azapi_resource.cae.id
+      workloadProfileName = "memoryoptimzied"
+
+      configuration = {
+        replicaTimeout    = 18600 # This becomes "replicaTimeoutInSeconds" when bumping to apiVersion @2025-01-01
+        replicaRetryLimit = 0
+
+        triggerType = "Event"
+        eventTriggerConfig = {
+          parallelism            = 1
+          replicaCompletionCount = 1
+          scale = {
+            minExecutions   = 0
+            maxExecutions   = 10
+            pollingInterval = 30
+            rules = [{
+              name = "queue"
+              type = "azure-queue"
+              metadata = {
+                accountName = module.dls.name
+                queueName   = basename(module.dls.queues["queue1"].id)
+                queueLength = "1"
+              }
+              identity = module.id.resource_id
+            }]
+          }
+        }
+        registries = [{
+          server   = module.acr.resource.login_server
+          identity = module.id.resource_id
+        }]
+        identitySettings = [{
+          identity = replace(module.id.resource_id, "resourceGroups", "resourcegroups")
+          # lifecycle = "All"
+        }]
+      }
+
+      template = {
+        containers = [{
+          name      = "ima-bi-medium"
+          image     = "${local.registry}/${local.image_name}:${local.image_tag}"
+          imageType = "ContainerImage" # This is removed when bumping to apiVersion @2025-01-01
+          resources = {
+            cpu    = 4
+            memory = "32Gi"
+          }
+          env = [
+            {
+              name  = "STORAGE_ACCOUNT_NAME"
+              value = module.dls.name
+            },
+            {
+              name  = "QUEUE_NAME"
+              value = basename(module.dls.queues["queue1"].id)
+            },
+            {
+              name  = "AZURE_TENANT_ID"
+              value = data.azurerm_client_config.current.tenant_id
+            },
+            {
+              name  = "AZURE_CLIENT_ID"
+              value = module.id.client_id
+            }
+          ]
+        }]
+      }
+    }
+  }
+
+  #  depends_on = [null_resource.push_image]
+}
 # One more super hacky setup to push a test message to the queue
 #locals {
 #  test_process = "Extract_FRED_Data"
