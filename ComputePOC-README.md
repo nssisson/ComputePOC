@@ -1,7 +1,7 @@
 # Compute POC
 A proof of concept to demonstrate the capability of python for data engineering tasks when run in Azure Container App Jobs
 
-# Requirements
+## Requirements
 
 Python 3.xx
 Terraform v1.12.2 +
@@ -17,13 +17,13 @@ Note that for the first deployment, we expect a two step deployment. The terrafo
 
 Jobs are started by pushing messages to the created Azure Storage Queues. For the pupose of this poc, the following would do:
 
-#Extract:
+### Extract:
 {
 "ExecutionId":"1",
 "Process":"Extract_FRED_Data"
 }
 
-#Transform
+#### Transform
 {
 "ExecutionId":"2",
 "Process":"Transform_Load_FREDBIGTABLE"
