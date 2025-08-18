@@ -23,7 +23,7 @@ Jobs are started by pushing messages to the created Azure Storage Queues. For th
 "Process":"Extract_FRED_Data"
 }
 
-#### Transform
+### Transform:
 {
 "ExecutionId":"2",
 "Process":"Transform_Load_FREDBIGTABLE"
