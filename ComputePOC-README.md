@@ -28,3 +28,9 @@ Jobs are started by pushing messages to the created Azure Storage Queues. For th
 "ExecutionId":"2",
 "Process":"Transform_Load_FREDBIGTABLE"
 }
+
+##IMA Environment workarounds
+
+When running the POC you will need to remove the commented out lines of code that says "connection_verify=False " in the files EventHandler.py, QueryAzureBlobParquet.py and WriteAzureBlob.py
+
+When logging into the Azure Container Registry you will receive an SSL certificate issue. The only way I have found to workaround this issue is to update the environemnt variable AZURE_CLI_DISABLE_CONNECTION_VERIFICATION = 1
