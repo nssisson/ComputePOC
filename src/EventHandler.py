@@ -5,6 +5,7 @@ import Extract_FRED_Data
 import Transform_Load_FREDBIGTABLE
 import Extract_FRED_Data_ALL
 import Transform_Load_FREDBIGTABLE_ALL
+import TestMount
 import WriteAzureBlob
 import json
 import os
@@ -31,7 +32,8 @@ function_map = {
     'Extract_FRED_Data': Extract_FRED_Data.main,
     'Transform_Load_FREDBIGTABLE': Transform_Load_FREDBIGTABLE.main,
     'Extract_FRED_Data_ALL': Extract_FRED_Data_ALL.main,
-    'Transform_Load_FREDBIGTABLE_ALL': Transform_Load_FREDBIGTABLE_ALL.main
+    'Transform_Load_FREDBIGTABLE_ALL': Transform_Load_FREDBIGTABLE_ALL.main,
+    'TestMount': TestMount.main
 }
 
 request = {}
